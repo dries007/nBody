@@ -16,12 +16,32 @@ typedef struct {
 } Vect2i;
 
 typedef struct {
-    double x, y, z;
+    union {
+        struct {double x, y, z;};
+        struct {double r, g, b;};
+    };
 } Vect3d;
 
 typedef struct {
-    double x, y, z, w;
+    union {
+        struct {float x, y, z;};
+        struct {float r, g, b;};
+    };
+} Vect3f;
+
+typedef struct {
+    union {
+        struct {double x, y, z, w;};
+        struct {double r, g, b, a;};
+    };
 } Vect4d;
+
+typedef struct {
+    union {
+        struct {float x, y, z, w;};
+        struct {float r, g, b, a;};
+    };
+} Vect4f;
 
 typedef struct {
     Vect3d pos;

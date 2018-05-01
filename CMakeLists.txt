@@ -18,7 +18,12 @@ find_package(GLUT REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIR} ${GLUT_INCLUDE_DIR})
 include_directories(${OPENCL_INCLUDE_DIR})
 
-add_library(renderer src/lib/renderer.h src/lib/renderer.c src/lib/ocl_utils.h src/lib/ocl_utils.c src/lib/time_utils.c src/lib/time_utils.h)
+add_library(renderer
+        src/lib/renderer.h src/lib/renderer.c
+        src/lib/ocl_utils.h src/lib/ocl_utils.c
+        src/lib/time_utils.c src/lib/time_utils.h
+        src/lib/text.h src/lib/text.c
+        )
 
 include_directories(src)
 

@@ -7,7 +7,7 @@
 #include "lib/time_utils.h"
 #include "lib/renderer.h"
 
-typedef struct __attribute__((packed)) body
+typedef struct body
 {
     cl_float3 pos;
     cl_float3 speed;
@@ -18,6 +18,10 @@ typedef struct callback_data {
     size_t n;
     Body* bodies;
     cl_mem dev_bodies;
+    Vect4f point_color;
+    float point_size;
+    bool draw_lines;
+    Vect4f line_color;
 } CallbackData;
 
 Body* create_bodies(size_t n)
@@ -44,25 +48,25 @@ void draw(void* data)
 {
     CallbackData* cd = data;
 
-    glColor4f(1, 1, 1, 1);
-    glPointSize(3);
+    glColor4fv((const GLfloat *) &cd->point_color);
+    glPointSize(cd->point_size);
     glBegin(GL_POINTS);
     for (int i = 0; i < cd->n; i++)
     {
-//        printf("%d:%.3f;%.3f;%.3f ", i, cd->bodies[i].pos.x, cd->bodies[i].pos.y, cd->bodies[i].pos.z);
         glVertex3fv((float *) &cd->bodies[i].pos);
     }
-//    printf("\n");
     glEnd();
-
-    glColor4f(.5, .5, .5, .3);
-    glBegin(GL_LINES);
-    for (int i = 0; i < cd->n; i++)
+    if (cd->draw_lines)
     {
-        glVertex3fv((float *) &cd->bodies[i].pos);
-        glVertex3f(cd->bodies[i].pos.x + cd->bodies[i].speed.x, cd->bodies[i].pos.y + cd->bodies[i].speed.y, cd->bodies[i].pos.z + cd->bodies[i].speed.z);
+        glColor4fv((float *) &cd->line_color);
+        glBegin(GL_LINES);
+        for (int i = 0; i < cd->n; i++)
+        {
+            glVertex3fv((float *) &cd->bodies[i].pos);
+            glVertex3f(cd->bodies[i].pos.x + cd->bodies[i].speed.x / 2, cd->bodies[i].pos.y + cd->bodies[i].speed.y / 2, cd->bodies[i].pos.z + cd->bodies[i].speed.z / 2);
+        }
+        glEnd();
     }
-    glEnd();
 }
 
 void step(void* data)
@@ -121,10 +125,14 @@ int main(int argc, char ** argv)
     ocl_err(clFinish(g_command_queue));
 
     CallbackData cd = {
-            kernel,
-            (size_t) n,
-            bodies,
-            dev_bodies,
+            kernel,                 /* cl_kernel kernel */
+            (size_t) n,             /* size_t n */
+            bodies,                 /* Body* bodies */
+            dev_bodies,             /* cl_mem dev_bodies */
+            {0.7, 0.7, 1, 1},       /* Vect4f point_color */
+            2,                      /* float point_size */
+            true,                   /* bool draw_lines */
+            {0.7, 0.7, 0.7, 0.2}    /* Vect4f line_color */
     };
 
     renderer_start(&cd, step, draw);

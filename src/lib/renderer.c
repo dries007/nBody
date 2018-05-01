@@ -1,8 +1,8 @@
 #include "renderer.h"
 
 Camera camera = {
-        (Vect3d){5, 5, 10},
-        -30, -5
+        {15, 15, 15},
+        -45, -30
 };
 static void* callback_data;
 static void (*callback_step_func)(void *);
@@ -15,7 +15,15 @@ static double mouseRotateDiv = 2.5;
 static double mousePanDiv = 10;
 static Vect2i prevMouse = {0, 0};
 
-/* Window reshaped callback */
+static void reshape(int w, int h);
+static void drawAxis(double size);
+static void display(void);
+static void idle();
+static void moveCamera(double forwards, double strafe, double yaw, double pitch, double x, double y, double z);
+static void mouse(int button, int state, int x, int y);
+static void motion(int x, int y);
+static void keyboard(unsigned char key, int x, int y);
+
 static void reshape(int w, int h)
 {
     glMatrixMode(GL_PROJECTION);
@@ -61,7 +69,7 @@ static void display(void)
     glRotated(camera.yaw, 0, 1, 0);
     glTranslated(-camera.pos.x, -camera.pos.y, -camera.pos.z);
 
-    drawAxis(10);
+//    drawAxis(1000);
 //    drawCheckers(1, 100);
 
     callback_draw_func(callback_data);
@@ -77,22 +85,6 @@ static void idle()
 
 static void moveCamera(double forwards, double strafe, double yaw, double pitch, double x, double y, double z)
 {
-    if (forwards != 0)
-    {
-        double dz = -cos(camera.yaw*M_PI/180.0);
-        double dy = sin(camera.pitch*M_PI/180.0);
-        double dx = sin(camera.yaw*M_PI/180.0);
-        camera.pos.x += dx * forwards;
-        camera.pos.y += dy * forwards;
-        camera.pos.z += dz * forwards;
-    }
-    if (strafe != 0)
-    {
-        double dz = sin(camera.yaw*M_PI/180.0);
-        double dx = cos(camera.yaw*M_PI/180.0);
-        camera.pos.x += dx * strafe;
-        camera.pos.z += dz * strafe;
-    }
     if (yaw != 0)
     {
         camera.yaw += yaw;
@@ -110,6 +102,22 @@ static void moveCamera(double forwards, double strafe, double yaw, double pitch,
         camera.pos.x += x;
         camera.pos.y += y;
         camera.pos.z += z;
+    }
+    if (forwards != 0)
+    {
+        double dz = -cos(camera.yaw*M_PI/180.0);
+        double dy = sin(camera.pitch*M_PI/180.0);
+        double dx = sin(camera.yaw*M_PI/180.0);
+        camera.pos.x += dx * forwards;
+        camera.pos.y += dy * forwards;
+        camera.pos.z += dz * forwards;
+    }
+    if (strafe != 0)
+    {
+        double dz = sin(camera.yaw*M_PI/180.0);
+        double dx = cos(camera.yaw*M_PI/180.0);
+        camera.pos.x += dx * strafe;
+        camera.pos.z += dz * strafe;
     }
     glutPostRedisplay();
 }
@@ -144,6 +152,15 @@ static void motion(int x, int y)
     if (mouseMiddleDown) moveCamera(0, 0, 0, 0, dx/mousePanDiv, 0, dy/mousePanDiv); // pan X Z
 }
 
+static void keyboard(unsigned char key, int x, int y)
+{
+    switch (key)
+    {
+        default: return;
+        case 27: exit(0);
+    }
+}
+
 void renderer_init(int argc, char **argv, char* title)
 {
     glutInit(&argc, argv);
@@ -159,6 +176,7 @@ void renderer_init(int argc, char **argv, char* title)
 
     glutReshapeFunc(reshape);
     glutDisplayFunc(display);
+    glutKeyboardFunc(keyboard);
 
     glutMouseFunc(mouse);
     glutMotionFunc(motion);
