@@ -4,7 +4,6 @@
  * nBody problem
  */
 #include "lib/ocl_utils.h"
-#include "lib/time_utils.h"
 #include "lib/renderer.h"
 
 enum MODE {
