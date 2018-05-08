@@ -28,4 +28,4 @@ add_library(renderer
 include_directories(src)
 
 add_executable(nBody src/main.c)
-target_link_libraries(nBody renderer m ${OPENCL_LIBRARIES} ${OPENGL_LIBRARY} ${GLUT_LIBRARY})
+target_link_libraries(nBody renderer m rt ${OPENCL_LIBRARIES} ${OPENGL_LIBRARY} ${GLUT_LIBRARY})
