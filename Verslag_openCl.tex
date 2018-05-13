@@ -1,0 +1,185 @@
+\documentclass[a4paper]{article}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage{pgfplots}
+\usepackage{listings}
+\usepackage{textcomp}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{filecontents}
+\pgfplotsset{compat=1.15}
+\usepackage[margin=2cm]{geometry}
+\usepackage{color}
+\lstset{
+    language=C,
+    basicstyle=\footnotesize,
+    numbers=left,
+    stepnumber=1,
+    showstringspaces=false,
+    tabsize=4,
+    breaklines=true,
+    breakatwhitespace=false,
+} 
+\usepackage{hyperref}
+\hypersetup{pdftitle={Laboverslag n-body probleem} pdfauthor={Dries Kennes \& Stijn Van Dessel} pdfborder={0 0 0} breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+
+%opening
+\title{Laboverslag n-body probleem}
+\author{Dries Kennes \& Stijn Van Dessel}
+
+\begin{filecontents}{results.csv}
+2,0.000020,0.001354,0.001374,0.001713
+4,0.000032,0.001403,0.001616,0.001740
+8,0.000084,0.001435,0.001432,0.001802
+16,0.000297,0.001554,0.001604,0.002014
+32,0.001462,0.001492,0.001504,0.002374
+64,0.004634,0.002012,0.002025,0.003951
+128,0.018927,0.003325,0.003342,0.009255
+256,0.074447,0.007342,0.007291,0.017675
+512,0.298560,0.013389,0.013361,0.030005
+1024,1.199929,0.026264,0.026623,0.083283
+2048,4.786847,0.070001,0.060309,0.187174
+4096,19.115835,0.181524,0.181600,0.536761
+8192,76.570487,0.764762,0.728157,1.856455
+16384,0,2.595713,2.625760,7.400403
+32768,0,11.846362,11.865299,30.745776
+65536,0,47.805630,47.775654,268.237756
+131072,0,172.297190,171.784650,0
+\end{filecontents}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+In dit laboverslag kan u de testresultaten van het n-body probleem voor het vak parallelle programmatie terugvinden. Dit verslag geeft een overzicht van de bekomen testresultaten. 
+De testen werden uitgevoerd met een verschillend aantal body's en met verschillende soorten kernels op de GPU. Daarnaast werd de opgave ook getest op de CPU als referentie.
+\end{abstract}
+
+\section{De geteste modi}
+
+Om dit verslag overzichtelijk te houden is alle code met regelnummers als bijlage toegevoegd. Alle testresultaten en conclusies zijn verzameld in sectie \ref{section:resultaten}.
+
+\subsection{Referentie-implementatie CPU}
+
+Als benchmark wordt de niet geparallelliseerde code op CPU getest. Deze code is aangepast om dezelfde rendering code te gebruiken als de GPU-geaccelereerde code, om de resultaten vergelijkbaar te maken. Deze resultaten geven een goed inzicht in het verschil tussen GPU en GPU. De overhead van het kopiëren van data van en naar de GPU eerst zorgt voor een aanzienlijk verschil in het voordeel van de CPU.
+
+De code voor deze modus is te vinden in de bijlage \ref{bijlage:main} (main.c), regels 94 t.e.m. 141.
+
+\subsection{Kernel 1: FLOAT}
+
+Voor de eerste GPU implementatie wordt enkel de buitenste for lust vervangen door een parallellisatie. We zien hier het concept data-afhankelijkheid voor het eerst opduiken.
+Aangezien we ze zeker van moeten zijn dat eerst alle snelheden zijn berekend voor er een van de posities wordt gewijzigd. Dit is belangrijk aangezien de positie nodig is om de snelheid te berekenen. Daarom wordt deze instructie toegevoegd:
+
+\begin{lstlisting}
+barrier(CLK_GLOBAL_MEM_FENCE);
+\end{lstlisting}
+
+Hiermee geven we aan dat iedere kernel op dit punt moet wachten totdat al de andere kernels ook tot op dit punt zijn geraakt. Als we dit niet zouden doen zouden sommige kernels al een positie update kunnen doen met als gevolg dat kernels die nog niet klaar zijn met rekenen zouden kunnen gaan verder rekenen met deze verkeerde waarden. Dit doet zich voor als het aantal workitems groter wordt dan het aantal beschikbare CPU cores.
+
+De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 46 t.e.m. 88.
+
+\subsection{Kernel 2: FLOAT3}
+
+De volgende test is het vergelijken van het verschil tussen het gebruik van 3 floats of het ingebouwde float3 datatype.
+Omdat float3 een ingebouwd type van OpenCL is, heeft het allerlei hulpfuncties en wiskundige operatoren ingebouwd. Dit maakt het programmeren eenvoudiger en de code overzichtelijker.
+
+De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 124 t.e.m. 156.
+
+\subsection{Kernel 3: 2D}
+
+Kernel 1 en 2 bevatten nog steeds een for lus, en kunnen dus nogmaals geparallelliseerd worden. De workitems wordt dan een 2d array, vandaar de naam van deze kernel.
+De delen van de code die buiten de for lus liggen kunnen niet op GPU worden uitgevoerd, tenzij hiervoor nog een extra kerel wordt toegevoegd. Dit hebben wij niet onderzocht.
+
+De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 90 t.e.m. 122.
+
+\section{Resultaten}\label{section:resultaten}
+
+De tijden zijn bekomen op een Intel i5-4670K (4GHz) met 16GB RAM en een NVIDIA GeForce GTX 1060 6GB, Linux 4.16.8 kernel met de Zen Kernel patches.
+Na het bereiken van 60 seconden per frame wordt deze reeks kernel tests stop gezet, omdat de volgende nog veel langer zou duren. 60 seconden per frame over 100 frames (om een representatief gemiddelde te kunnen maken) duurt al 1h40.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{|r|r|r|r|r|}
+\textbf{Bodies} & \textbf{CPU} & \textbf{FLOAT} & \textbf{FLOAT3} & \textbf{2D} \\ \hline
+2      & 0.000020  &   0.001354 &   0.001374 &   0.001713 \\ \hline
+4      & 0.000032  &   0.001403 &   0.001616 &   0.001740 \\ \hline
+8      & 0.000084  &   0.001435 &   0.001432 &   0.001802 \\ \hline
+16     & 0.000297  &   0.001554 &   0.001604 &   0.002014 \\ \hline
+32     & 0.001462  &   0.001492 &   0.001504 &   0.002374 \\ \hline
+64     & 0.004634  &   0.002012 &   0.002025 &   0.003951 \\ \hline
+128    & 0.018927  &   0.003325 &   0.003342 &   0.009255 \\ \hline
+256    & 0.074447  &   0.007342 &   0.007291 &   0.017675 \\ \hline
+512    & 0.298560  &   0.013389 &   0.013361 &   0.030005 \\ \hline
+1024   & 1.199929  &   0.026264 &   0.026623 &   0.083283 \\ \hline
+2048   & 4.786847  &   0.070001 &   0.060309 &   0.187174 \\ \hline
+4096   & 19.115835 &   0.181524 &   0.181600 &   0,536761 \\ \hline
+8192   & 76.570487 &   0.764762 &   0.728157 &   1.856455 \\ \hline
+16384  & na        &   2.595713 &   2.625760 &   7.400403 \\ \hline
+32768  & na        &  11.846362 &  11.865299 &  30.745776 \\ \hline
+65536  & na        &  47.805630 &  47.775654 & 268.237756 \\ \hline
+131072 & na        & 172.297190 & 171.784650 & na         \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\begin{tikzpicture}
+\centering
+\begin{axis}[
+width=\textwidth,
+height=\axisdefaultheight,
+title={De resultaten, dubbel logaritmisch},
+xlabel={Aantal bodies [log]},
+ylabel={Tijd per frame [s, log]},
+xmode=log,
+ymode=log,
+xmin=0, xmax=150000,
+ymin=0, ymax=1000,
+ymajorgrids=true,
+xmajorgrids=true,
+yminorgrids=true,
+xminorgrids=false,
+grid style=dashed,
+legend cell align={left},
+legend pos=north west,
+]
+
+\addplot table[x index=0,y index=1,col sep=comma] {results.csv};
+\addlegendentry{CPU}
+\addplot table[x index=0,y index=2,col sep=comma] {results.csv};
+\addlegendentry{FLOAT}
+\addplot table[x index=0,y index=3,col sep=comma] {results.csv};
+\addlegendentry{FLOAT3}
+\addplot table[x index=0,y index=4,col sep=comma] {results.csv};
+\addlegendentry{2D}
+
+\end{axis}
+\end{tikzpicture}
+\end{figure}
+
+Hieruit is duidelijk te zien dat het verloop exponentieel is, wat verwacht is bij code die een dubbele for lus heeft. Echter heeft de CPU een voorsprong omdat er minder overhead is. De GPU kernels moeten namelijk worden opgestart met data die moet worden gekopieerd van en naar de het CPU geheugen. Daarom is de curve van de GPU modi eerst vlak, om daarna een substantieel voordeel op te leveren ten opzichte van de CPU.
+
+Er is geen (merkbaar) verschil tussen de FLOAT en FLOAT3 kernels, dit kan eenvoudig worden verklaard met wat achtergrondinformatie: NVIDEA is een scalaire architectuur, en implementeert de vectoroperatie intern als een reeks scalaire operaties.
+
+Er is echter wel een merkbaar verschil tussen de 1D en 2D kernels. De 2D kernel is trager door twee oorzaken. Ten eerste moet een deel van de berekening op CPU worden uitgevoerd, maar is het resultaat daarvan nodig bij de volgende iteratie. Daardoor moet het geheugen opnieuw van CPU naar GPU worden gekopieerd, wat bij de 1D kernels niet nodig is.
+Ten tweede moet de som operatie atomisch worden uitgevoerd. Dit wil zeggen dat er meermaals geprobeerd moet worden om de som uit te voeren tot ze correct is gebeurd (omdat er geen native atomic add is kan die zo worden geëmuleerd). Omdat alle kernels in een workgroup dezelfde instructies moeten uitvoeren moeten ze dus allemaal wachten tot elk van de som operaties geslaagd is. Dit voegt meer overhead toe dan de snelheidswinst die de uitbreiding naar 2D oplevert.
+
+Onze conclusie is dat de FLOAT3 de beste kernel is. Op ons NVIDEA platform leverde dit geen voordeel op t.o.v. de FLOAT kernel, maar op een ander platform zou dit wel het geval kunnen zijn. Ook is de code duidelijker en eenvoudiger te schrijven.
+
+\newpage\section{Bijlage}
+
+\subsection{kernel.cl}\label{bijlage:kernel}
+\lstinputlisting{src/kernel.cl}
+
+\subsection{main.c}\label{bijlage:main}
+\lstinputlisting{src/main.c}
+
+\subsection{lib/renderer.h}\label{bijlage:lib_renderer_h}
+\lstinputlisting{src/lib/renderer.h}
+
+\subsection{lib/renderer.c}\label{bijlage:lib_renderer_c}
+\lstinputlisting{src/lib/renderer.c}
+
+\end{document}

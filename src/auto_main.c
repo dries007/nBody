@@ -1,12 +1,17 @@
 /**
  * (c) Dries Kennes & Stijn Van Dessel 2018
  *
- * nBody problem
+ * nBody problem, no rendering, automatically stops after 100 "frames"
  */
 #include "lib/ocl_utils.h"
-#include "lib/renderer.h"
 
-#define AVG_MAX 100
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <errno.h>
+#include <math.h>
+#include <time.h>
 
 enum MODE {
     MODE_CPU,
@@ -20,18 +25,6 @@ typedef struct body
     cl_float3 pos;
     cl_float3 speed;
 } Body;
-
-typedef struct callback_data {
-    cl_kernel kernel;
-    size_t n;
-    Body* bodies;
-    cl_mem dev_bodies;
-    Vect4f point_color;
-    float point_size;
-    bool draw_lines;
-    Vect4f line_color;
-    enum MODE mode;
-} CallbackData;
 
 Body* create_bodies(size_t n)
 {
@@ -53,31 +46,6 @@ Body* create_bodies(size_t n)
     return data;
 }
 
-void draw(void* data)
-{
-    CallbackData* cd = data;
-
-    glColor4fv((const GLfloat *) &cd->point_color);
-    glPointSize(cd->point_size);
-    glBegin(GL_POINTS);
-    for (int i = 0; i < cd->n; i++)
-    {
-        glVertex3fv((float *) &cd->bodies[i].pos);
-    }
-    glEnd();
-    if (cd->draw_lines)
-    {
-        glColor4fv((float *) &cd->line_color);
-        glBegin(GL_LINES);
-        for (int i = 0; i < cd->n; i++)
-        {
-            glVertex3fv((float *) &cd->bodies[i].pos);
-            glVertex3f(cd->bodies[i].pos.x + cd->bodies[i].speed.x / 2, cd->bodies[i].pos.y + cd->bodies[i].speed.y / 2, cd->bodies[i].pos.z + cd->bodies[i].speed.z / 2);
-        }
-        glEnd();
-    }
-}
-
 struct timespec diff(struct timespec start, struct timespec end)
 {
     struct timespec temp;
@@ -91,8 +59,12 @@ struct timespec diff(struct timespec start, struct timespec end)
     return temp;
 }
 
-void kernel_cpu(CallbackData* cd)
+void kernel_cpu(size_t n, Body* bodies)
 {
+    /**
+     * Laptop Dries CPU, 1000, avg: 0.038 s (avg 100 frames) 26.3 FPS
+     * Laptop Dries CPU, 5000, avg: 0.93  s (avg 100 frames)    1 FPS
+     */
     const float delta_time = 1.f;
     // const float grav_constant = 6.67428e-11;
     const float grav_constant = 1;
@@ -100,18 +72,19 @@ void kernel_cpu(CallbackData* cd)
     const float mass_grav = grav_constant * mass_of_sun * mass_of_sun;
     const float distance_to_nearest_star = 50;
 
-    for (int i = 0; i < cd->n; ++i)
+    for (int i = 0; i < n; ++i)
     {
-        for (int j = 0; j < cd->n; ++j)
+        for (int j = 0; j < n; ++j)
         {
             if (i == j) continue;
 
-            cl_float3 pos_a = cd->bodies[i].pos;
-            cl_float3 pos_b = cd->bodies[j].pos;
+            cl_float3 pos_a = bodies[i].pos;
+            cl_float3 pos_b = bodies[j].pos;
 
             float dist_x = (pos_a.s[0] - pos_b.s[0]) * distance_to_nearest_star;
             float dist_y = (pos_a.s[1] - pos_b.s[1]) * distance_to_nearest_star;
             float dist_z = (pos_a.s[2] - pos_b.s[2]) * distance_to_nearest_star;
+
 
             float distance = sqrt(
                     dist_x * dist_x +
@@ -126,79 +99,21 @@ void kernel_cpu(CallbackData* cd)
             float acc_y = force_y / mass_of_sun;
             float acc_z = force_z / mass_of_sun;
 
-            cd->bodies[i].speed.s[0] += acc_x * delta_time;
-            cd->bodies[i].speed.s[1] += acc_y * delta_time;
-            cd->bodies[i].speed.s[2] += acc_z * delta_time;
+            bodies[i].speed.s[0] += acc_x * delta_time;
+            bodies[i].speed.s[1] += acc_y * delta_time;
+            bodies[i].speed.s[2] += acc_z * delta_time;
         }
     }
 
-    for (int i = 0; i < cd->n; ++i)
+    for (int i = 0; i < n; ++i)
     {
-        cd->bodies[i].pos.s[0] += (cd->bodies[i].speed.s[0] * delta_time) / distance_to_nearest_star;
-        cd->bodies[i].pos.s[1] += (cd->bodies[i].speed.s[1] * delta_time) / distance_to_nearest_star;
-        cd->bodies[i].pos.s[2] += (cd->bodies[i].speed.s[2] * delta_time) / distance_to_nearest_star;
+        bodies[i].pos.s[0] += (bodies[i].speed.s[0] * delta_time) / distance_to_nearest_star;
+        bodies[i].pos.s[1] += (bodies[i].speed.s[1] * delta_time) / distance_to_nearest_star;
+        bodies[i].pos.s[2] += (bodies[i].speed.s[2] * delta_time) / distance_to_nearest_star;
     }
 }
 
-void step(void* data)
-{
-    static struct timespec avg[AVG_MAX];
-    static int time_index = 0;
-
-    struct timespec time1, time2;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-
-    CallbackData* cd = data;
-
-    switch (cd->mode)
-    {
-        case MODE_CPU:
-            kernel_cpu(cd);
-        break;
-        case MODE_FLOAT3:
-        case MODE_FLOAT:
-            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 1, NULL, &cd->n, NULL, 0, NULL, NULL)); //1D
-            ocl_err(clFinish(g_command_queue));
-            ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
-            ocl_err(clFinish(g_command_queue));
-            break;
-        case MODE_2D:
-        {
-            size_t size[] = {cd->n, cd->n};
-            ocl_err(clEnqueueWriteBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
-            ocl_err(clFinish(g_command_queue));
-            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 2, NULL, size, NULL, 0, NULL, NULL)); //2D
-            ocl_err(clFinish(g_command_queue));
-            ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
-            ocl_err(clFinish(g_command_queue));
-            const float SCALE = 50;
-            const float TIME_DELTA = 1;
-            for (int i = 0; i < cd->n; ++i)
-            {
-                cd->bodies[i].pos.s[0] += (cd->bodies[i].speed.s[0] * TIME_DELTA) / SCALE;
-                cd->bodies[i].pos.s[1] += (cd->bodies[i].speed.s[1] * TIME_DELTA) / SCALE;
-                cd->bodies[i].pos.s[2] += (cd->bodies[i].speed.s[2] * TIME_DELTA) / SCALE;
-            }
-        }
-            break;
-        default:
-            abort();
-    }
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
-    avg[time_index] = diff(time1, time2);
-    time_index ++;
-    if (time_index == AVG_MAX)
-    {
-        time_index = 0;
-        double sum = 0;
-        for (int i = 0; i < AVG_MAX; i++) {
-            sum += avg[i].tv_sec + avg[i].tv_nsec / 1000000000.0;
-        }
-        sum /= AVG_MAX;
-        printf("AVG: %lf\n", sum);
-    }
-}
+#define AVG_MAX 100
 
 int main(int argc, char ** argv)
 {
@@ -240,7 +155,6 @@ int main(int argc, char ** argv)
 
     char* title = malloc(1 + (size_t) snprintf(NULL, 0, "nBody problem - %ld bodies", n));
     sprintf(title, "nBody problem - %ld bodies", n);
-    renderer_init(argc, argv, title);
 
     srand((unsigned int) time(NULL));
     Body* bodies = create_bodies((size_t) n);
@@ -283,19 +197,62 @@ int main(int argc, char ** argv)
         ocl_err(clFinish(g_command_queue));
     }
 
-    CallbackData cd = {
-            kernel,                 /* cl_kernel kernel */
-            (size_t) n,             /* size_t n */
-            bodies,                 /* Body* bodies */
-            dev_bodies,             /* cl_mem dev_bodies */
-            {0.7, 0.7, 1, 1},       /* Vect4f point_color */
-            2,                      /* float point_size */
-            true,                   /* bool draw_lines */
-            {0.7, 0.7, 0.7, 0.2},   /* Vect4f line_color */
-            mode,                   /* Mode */
-    };
+    struct timespec avg[AVG_MAX];
+    int time_index = 0;
 
-    renderer_start(&cd, step, draw);
+    struct timespec time1, time2;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
 
-    return 0;
+    while (true)
+    {
+        switch (mode)
+        {
+            case MODE_CPU:
+                kernel_cpu(n, bodies);
+                break;
+            case MODE_FLOAT3:
+            case MODE_FLOAT:
+                ocl_err(clEnqueueNDRangeKernel(g_command_queue, kernel, 1, NULL, &n, NULL, 0, NULL, NULL)); //1D
+                ocl_err(clFinish(g_command_queue));
+                ocl_err(clEnqueueReadBuffer(g_command_queue, dev_bodies, CL_TRUE, 0, sizeof(Body) * n, bodies, 0, NULL, NULL));
+                ocl_err(clFinish(g_command_queue));
+                break;
+            case MODE_2D:
+            {
+                size_t size[] = {n, n};
+                ocl_err(clEnqueueWriteBuffer(g_command_queue, dev_bodies, CL_TRUE, 0, sizeof(Body) * n, bodies, 0, NULL, NULL));
+                ocl_err(clFinish(g_command_queue));
+                ocl_err(clEnqueueNDRangeKernel(g_command_queue, kernel, 2, NULL, size, NULL, 0, NULL, NULL)); //2D
+                ocl_err(clFinish(g_command_queue));
+                ocl_err(clEnqueueReadBuffer(g_command_queue, dev_bodies, CL_TRUE, 0, sizeof(Body) * n, bodies, 0, NULL, NULL));
+                ocl_err(clFinish(g_command_queue));
+                const float SCALE = 50;
+                const float TIME_DELTA = 1;
+                for (int i = 0; i < n; ++i)
+                {
+                    bodies[i].pos.s[0] += (bodies[i].speed.s[0] * TIME_DELTA) / SCALE;
+                    bodies[i].pos.s[1] += (bodies[i].speed.s[1] * TIME_DELTA) / SCALE;
+                    bodies[i].pos.s[2] += (bodies[i].speed.s[2] * TIME_DELTA) / SCALE;
+                }
+            }
+                break;
+            default:
+                abort();
+        }
+
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2);
+        avg[time_index] = diff(time1, time2);
+        time_index ++;
+        if (time_index == AVG_MAX)
+        {
+            time_index = 0;
+            double sum = 0;
+            for (int i = 0; i < AVG_MAX; i++) {
+                sum += avg[i].tv_sec + avg[i].tv_nsec / 1000000000.0;
+            }
+            sum /= AVG_MAX;
+            printf("AVG: %lf\n", sum);
+            return 0;
+        }
+    }
 }
