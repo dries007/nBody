@@ -9,7 +9,16 @@
 \usepackage{filecontents}
 \usepackage[margin=2cm]{geometry}
 \usepackage{color}
-\usepackage{hyperref}
+\usepackage[
+hidelinks,
+pdftex,
+pdfauthor={Dries Kennes \& Stijn Van Dessel},
+pdftitle={Laboverslag n-body probleem},
+pdfsubject={Laboverslag n-body probleem},
+pdfkeywords={GPGPU OpenGL nBody},
+pdfproducer={Latex with hyperref},
+pdfcreator={pdflatex},
+]{hyperref}
 \pgfplotsset{compat=1.15}
 \lstset{
     language=C,
@@ -20,8 +29,7 @@
     tabsize=4,
     breaklines=true,
     breakatwhitespace=false,
-} 
-\hypersetup{pdftitle={Laboverslag n-body probleem} pdfauthor={Dries Kennes \& Stijn Van Dessel} pdfborder={0 0 0} breaklinks=true}
+}
 \urlstyle{same}
 
 \title{Laboverslag n-body probleem}
