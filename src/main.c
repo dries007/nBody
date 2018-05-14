@@ -159,19 +159,24 @@ void step(void* data)
         break;
         case MODE_FLOAT3:
         case MODE_FLOAT:
-            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 1, NULL, &cd->n, NULL, 0, NULL, NULL));
+            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 1, NULL, &cd->n, NULL,
+                                           0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
-            ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
+            ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0,
+                                        sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
             break;
         case MODE_2D:
         {
             size_t size[] = {cd->n, cd->n};
-            ocl_err(clEnqueueWriteBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
+            ocl_err(clEnqueueWriteBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0,
+                                         sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
-            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 2, NULL, size, NULL, 0, NULL, NULL));
+            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 2, NULL, size, NULL,
+                                           0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
-            ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
+            ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0,
+                                        sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
             const float SCALE = 50;
             const float TIME_DELTA = 1;

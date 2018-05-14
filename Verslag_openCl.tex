@@ -45,7 +45,7 @@ Om dit verslag overzichtelijk te houden is alle code met regelnummers als bijlag
 
 Als benchmark wordt de niet geparallelliseerde code op CPU getest. Deze code is aangepast om dezelfde rendering code te gebruiken als de geparallelliseerde code, om de resultaten vergelijkbaar te maken.
 
-De code voor deze modus is te vinden in de bijlage \ref{bijlage:main} (main.c), regels 94 t.e.m. 141.
+De code voor deze modus is te vinden in de bijlage \ref{bijlage:main} (main.c), regels 97 t.e.m. 143.
 
 \subsection{Kernel 1: FLOAT}
 
@@ -58,21 +58,21 @@ barrier(CLK_GLOBAL_MEM_FENCE);
 
 Hiermee geven we aan dat iedere kernel op dit punt moet wachten totdat al de andere kernels ook tot op dit punt zijn geraakt. Als we dit niet zouden doen zouden sommige kernels al een positie update kunnen doen met als gevolg dat kernels die nog niet klaar zijn met rekenen zouden kunnen gaan verder rekenen met deze verkeerde waarden. Dit doet zich voor als het aantal workitems groter wordt dan het aantal beschikbare CPU cores.
 
-De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 46 t.e.m. 88.
+De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 48 t.e.m. 89.
 
 \subsection{Kernel 2: FLOAT3}
 
 De volgende test is het vergelijken van het verschil tussen het gebruik van 3 floats of het ingebouwde float3 datatype.
 Omdat float3 een ingebouwd type van OpenCL is, heeft het allerlei hulpfuncties en wiskundige operatoren ingebouwd. Dit maakt het programmeren eenvoudiger en de code overzichtelijker.
 
-De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 124 t.e.m. 156.
+De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 91 t.e.m. 123.
 
 \subsection{Kernel 3: 2D}
 
 Kernel 1 en 2 bevatten nog steeds een for lus, en kunnen dus nogmaals geparallelliseerd worden. De workitems wordt dan een 2d array, vandaar de naam van deze kernel.
 De delen van de code die buiten de for lus liggen kunnen niet op GPU worden uitgevoerd, tenzij hiervoor nog een extra kerel wordt toegevoegd. Dit hebben wij niet onderzocht.
 
-De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 90 t.e.m. 122.
+De code voor deze kernel is te vinden in de bijlage \ref{bijlage:kernel} (kernel.cl), regels 125 t.e.m. 157.
 
 \section{Resultaten}\label{section:resultaten}
 
