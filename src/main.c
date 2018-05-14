@@ -1,7 +1,7 @@
 /**
  * (c) Dries Kennes & Stijn Van Dessel 2018
  *
- * nBody problem
+ * nBody problem (Main program)
  */
 #include "lib/ocl_utils.h"
 #include "lib/renderer.h"
@@ -72,7 +72,10 @@ void draw(void* data)
         for (int i = 0; i < cd->n; i++)
         {
             glVertex3fv((float *) &cd->bodies[i].pos);
-            glVertex3f(cd->bodies[i].pos.x + cd->bodies[i].speed.x / 2, cd->bodies[i].pos.y + cd->bodies[i].speed.y / 2, cd->bodies[i].pos.z + cd->bodies[i].speed.z / 2);
+            glVertex3f(
+                    cd->bodies[i].pos.x + cd->bodies[i].speed.x / 2,
+                    cd->bodies[i].pos.y + cd->bodies[i].speed.y / 2,
+                    cd->bodies[i].pos.z + cd->bodies[i].speed.z / 2);
         }
         glEnd();
     }
@@ -94,11 +97,10 @@ struct timespec diff(struct timespec start, struct timespec end)
 void kernel_cpu(CallbackData* cd)
 {
     const float delta_time = 1.f;
-    // const float grav_constant = 6.67428e-11;
     const float grav_constant = 1;
     const float mass_of_sun = 2;
     const float mass_grav = grav_constant * mass_of_sun * mass_of_sun;
-    const float distance_to_nearest_star = 50;
+    const float scale = 50;
 
     for (int i = 0; i < cd->n; ++i)
     {
@@ -109,9 +111,9 @@ void kernel_cpu(CallbackData* cd)
             cl_float3 pos_a = cd->bodies[i].pos;
             cl_float3 pos_b = cd->bodies[j].pos;
 
-            float dist_x = (pos_a.s[0] - pos_b.s[0]) * distance_to_nearest_star;
-            float dist_y = (pos_a.s[1] - pos_b.s[1]) * distance_to_nearest_star;
-            float dist_z = (pos_a.s[2] - pos_b.s[2]) * distance_to_nearest_star;
+            float dist_x = (pos_a.s[0] - pos_b.s[0]) * scale;
+            float dist_y = (pos_a.s[1] - pos_b.s[1]) * scale;
+            float dist_z = (pos_a.s[2] - pos_b.s[2]) * scale;
 
             float distance = sqrt(
                     dist_x * dist_x +
@@ -134,9 +136,9 @@ void kernel_cpu(CallbackData* cd)
 
     for (int i = 0; i < cd->n; ++i)
     {
-        cd->bodies[i].pos.s[0] += (cd->bodies[i].speed.s[0] * delta_time) / distance_to_nearest_star;
-        cd->bodies[i].pos.s[1] += (cd->bodies[i].speed.s[1] * delta_time) / distance_to_nearest_star;
-        cd->bodies[i].pos.s[2] += (cd->bodies[i].speed.s[2] * delta_time) / distance_to_nearest_star;
+        cd->bodies[i].pos.s[0] += (cd->bodies[i].speed.s[0] * delta_time) / scale;
+        cd->bodies[i].pos.s[1] += (cd->bodies[i].speed.s[1] * delta_time) / scale;
+        cd->bodies[i].pos.s[2] += (cd->bodies[i].speed.s[2] * delta_time) / scale;
     }
 }
 
@@ -157,7 +159,7 @@ void step(void* data)
         break;
         case MODE_FLOAT3:
         case MODE_FLOAT:
-            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 1, NULL, &cd->n, NULL, 0, NULL, NULL)); //1D
+            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 1, NULL, &cd->n, NULL, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
             ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
@@ -167,7 +169,7 @@ void step(void* data)
             size_t size[] = {cd->n, cd->n};
             ocl_err(clEnqueueWriteBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
-            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 2, NULL, size, NULL, 0, NULL, NULL)); //2D
+            ocl_err(clEnqueueNDRangeKernel(g_command_queue, cd->kernel, 2, NULL, size, NULL, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
             ocl_err(clEnqueueReadBuffer(g_command_queue, cd->dev_bodies, CL_TRUE, 0, sizeof(Body) * cd->n, cd->bodies, 0, NULL, NULL));
             ocl_err(clFinish(g_command_queue));
@@ -220,10 +222,22 @@ int main(int argc, char ** argv)
         return -1;
     }
     enum MODE mode;
-    if (strcmp(argv[2], "CPU") == 0 || strcmp(argv[2], "cpu") == 0) mode = MODE_CPU;
-    else if (strcmp(argv[2], "FLOAT3") == 0 || strcmp(argv[2], "float3") == 0) mode = MODE_FLOAT3;
-    else if (strcmp(argv[2], "FLOAT") == 0 || strcmp(argv[2], "float") == 0) mode = MODE_FLOAT;
-    else if (strcmp(argv[2], "2D") == 0 || strcmp(argv[2], "2d") == 0) mode = MODE_2D;
+    if (strcmp(argv[2], "CPU") == 0 || strcmp(argv[2], "cpu") == 0)
+    {
+        mode = MODE_CPU;
+    }
+    else if (strcmp(argv[2], "FLOAT3") == 0 || strcmp(argv[2], "float3") == 0)
+    {
+        mode = MODE_FLOAT3;
+    }
+    else if (strcmp(argv[2], "FLOAT") == 0 || strcmp(argv[2], "float") == 0)
+    {
+        mode = MODE_FLOAT;
+    }
+    else if (strcmp(argv[2], "2D") == 0 || strcmp(argv[2], "2d") == 0)
+    {
+        mode = MODE_2D;
+    }
     else
     {
         printf("'%s' was not converted to a mode.\n", argv[1]);
@@ -246,8 +260,8 @@ int main(int argc, char ** argv)
     Body* bodies = create_bodies((size_t) n);
 
     // Create kernel
-    cl_int error;
-    cl_kernel kernel;
+    cl_int error = 0;
+    cl_kernel kernel = NULL;
     cl_mem dev_bodies;
     switch (mode)
     {
@@ -272,7 +286,12 @@ int main(int argc, char ** argv)
         ocl_err(error);
         ocl_err(clFinish(g_command_queue));
         // Data buffer on GPU (RW)
-        dev_bodies = clCreateBuffer(g_context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sizeof(Body) * n, bodies, &error);
+        dev_bodies = clCreateBuffer(
+                g_context,
+                CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                sizeof(Body) * n,
+                bodies,
+                &error);
         ocl_err(error);
         ocl_err(clFinish(g_command_queue));
 
@@ -292,7 +311,7 @@ int main(int argc, char ** argv)
             2,                      /* float point_size */
             true,                   /* bool draw_lines */
             {0.7, 0.7, 0.7, 0.2},   /* Vect4f line_color */
-            mode,                   /* Mode */
+            mode,                   /* Mode mode */
     };
 
     renderer_start(&cd, step, draw);

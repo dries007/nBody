@@ -1,9 +1,15 @@
 #include "renderer.h"
-
+/**
+ * (c) Dries Kennes 2018
+ *
+ * Rendering helper. Largely a copy of my personal OpenGL project.
+ */
+/* Public global variables */
 Camera camera = {
         {15, 15, 15},
         -45, -30
 };
+/* Private (global) variables */
 static void* callback_data;
 static void (*callback_step_func)(void *);
 static void (*callback_draw_func)(void *);
@@ -15,8 +21,8 @@ static double mouseRotateDiv = 2.5;
 static double mousePanDiv = 10;
 static Vect2i prevMouse = {0, 0};
 
+/* Private functions */
 static void reshape(int w, int h);
-static void drawAxis(double size);
 static void display(void);
 static void idle();
 static void moveCamera(double forwards, double strafe, double yaw, double pitch, double x, double y, double z);
@@ -24,39 +30,13 @@ static void mouse(int button, int state, int x, int y);
 static void motion(int x, int y);
 static void keyboard(unsigned char key, int x, int y);
 
+/* Private functions */
 static void reshape(int w, int h)
 {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(90, (double) w / h, 0.1, 1000);
     glViewport(0, 0, w, h);
-}
-
-static void drawAxis(double size)
-{
-    glPushMatrix();
-    glPushAttrib(GL_LINE_STIPPLE);
-    glPushAttrib(GL_LINE_STIPPLE_PATTERN);
-    glPushAttrib(GL_LINE_STIPPLE_REPEAT);
-
-    glBegin(GL_LINES);
-    glColor3f(1, 0, 0); glVertex3d(0, 0, 0); glVertex3d(size, 0, 0);
-    glColor3f(0, 1, 0); glVertex3d(0, 0, 0); glVertex3d(0, size, 0);
-    glColor3f(0, 0, 1); glVertex3d(0, 0, 0); glVertex3d(0, 0, size);
-    glEnd();
-
-    glLineStipple((int) (size / 100), 0xAAAA);
-    glEnable(GL_LINE_STIPPLE);
-    glBegin(GL_LINES);
-    glColor3f(1, 0, 0); glVertex3d(0, 0, 0); glVertex3d(-size, 0, 0);
-    glColor3f(0, 1, 0); glVertex3d(0, 0, 0); glVertex3d(0, -size, 0);
-    glColor3f(0, 0, 1); glVertex3d(0, 0, 0); glVertex3d(0, 0, -size);
-    glEnd();
-
-    glPopAttrib();/* GL_LINE_STIPPLE_REPEAT */
-    glPopAttrib();/* GL_LINE_STIPPLE_PATTERN */
-    glPopAttrib();/* GL_LINE_STIPPLE */
-    glPopMatrix();
 }
 
 static void display(void)
@@ -68,9 +48,6 @@ static void display(void)
     glRotated(-camera.pitch, 1, 0, 0);
     glRotated(camera.yaw, 0, 1, 0);
     glTranslated(-camera.pos.x, -camera.pos.y, -camera.pos.z);
-
-//    drawAxis(1000);
-//    drawCheckers(1, 100);
 
     callback_draw_func(callback_data);
 
@@ -147,9 +124,18 @@ static void motion(int x, int y)
     prevMouse.x = x;
     prevMouse.y = y;
 
-    if (mouseLeftDown) moveCamera(0, dx/mouseZoomDiv, 0, 0, 0, dy/mousePanDiv, 0); // Y & strafe
-    if (mouseRightDown) moveCamera(0, 0, -dx/mouseRotateDiv, dy/mouseRotateDiv, 0, 0, 0); // yaw & pitch
-    if (mouseMiddleDown) moveCamera(0, 0, 0, 0, dx/mousePanDiv, 0, dy/mousePanDiv); // pan X Z
+    if (mouseLeftDown)
+    {
+        moveCamera(0, dx/mouseZoomDiv, 0, 0, 0, dy/mousePanDiv, 0); // Y & strafe
+    }
+    if (mouseRightDown)
+    {
+        moveCamera(0, 0, -dx/mouseRotateDiv, dy/mouseRotateDiv, 0, 0, 0); // yaw & pitch
+    }
+    if (mouseMiddleDown)
+    {
+        moveCamera(0, 0, 0, 0, dx/mousePanDiv, 0, dy/mousePanDiv); // pan X Z
+    }
 }
 
 static void keyboard(unsigned char key, int x, int y)
@@ -161,6 +147,7 @@ static void keyboard(unsigned char key, int x, int y)
     }
 }
 
+/* Public 'API' */
 void renderer_init(int argc, char **argv, char* title)
 {
     glutInit(&argc, argv);

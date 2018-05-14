@@ -7,9 +7,10 @@
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{filecontents}
-\pgfplotsset{compat=1.15}
 \usepackage[margin=2cm]{geometry}
 \usepackage{color}
+\usepackage{hyperref}
+\pgfplotsset{compat=1.15}
 \lstset{
     language=C,
     basicstyle=\footnotesize,
@@ -20,33 +21,12 @@
     breaklines=true,
     breakatwhitespace=false,
 } 
-\usepackage{hyperref}
 \hypersetup{pdftitle={Laboverslag n-body probleem} pdfauthor={Dries Kennes \& Stijn Van Dessel} pdfborder={0 0 0} breaklinks=true}
-\urlstyle{same}  % don't use monospace font for urls
+\urlstyle{same}
 
-%opening
 \title{Laboverslag n-body probleem}
 \author{Dries Kennes \& Stijn Van Dessel}
-
-\begin{filecontents}{results.csv}
-2,0.000020,0.001354,0.001374,0.001713
-4,0.000032,0.001403,0.001616,0.001740
-8,0.000084,0.001435,0.001432,0.001802
-16,0.000297,0.001554,0.001604,0.002014
-32,0.001462,0.001492,0.001504,0.002374
-64,0.004634,0.002012,0.002025,0.003951
-128,0.018927,0.003325,0.003342,0.009255
-256,0.074447,0.007342,0.007291,0.017675
-512,0.298560,0.013389,0.013361,0.030005
-1024,1.199929,0.026264,0.026623,0.083283
-2048,4.786847,0.070001,0.060309,0.187174
-4096,19.115835,0.181524,0.181600,0.536761
-8192,76.570487,0.764762,0.728157,1.856455
-16384,0,2.595713,2.625760,7.400403
-32768,0,11.846362,11.865299,30.745776
-65536,0,47.805630,47.775654,268.237756
-131072,0,172.297190,171.784650,0
-\end{filecontents}
+\date{\today{}}
 
 \begin{document}
 
@@ -63,7 +43,7 @@ Om dit verslag overzichtelijk te houden is alle code met regelnummers als bijlag
 
 \subsection{Referentie-implementatie CPU}
 
-Als benchmark wordt de niet geparallelliseerde code op CPU getest. Deze code is aangepast om dezelfde rendering code te gebruiken als de GPU-geaccelereerde code, om de resultaten vergelijkbaar te maken. Deze resultaten geven een goed inzicht in het verschil tussen GPU en GPU. De overhead van het kopiëren van data van en naar de GPU eerst zorgt voor een aanzienlijk verschil in het voordeel van de CPU.
+Als benchmark wordt de niet geparallelliseerde code op CPU getest. Deze code is aangepast om dezelfde rendering code te gebruiken als de geparallelliseerde code, om de resultaten vergelijkbaar te maken.
 
 De code voor deze modus is te vinden in de bijlage \ref{bijlage:main} (main.c), regels 94 t.e.m. 141.
 
@@ -135,8 +115,6 @@ xlabel={Aantal bodies [log]},
 ylabel={Tijd per frame [s, log]},
 xmode=log,
 ymode=log,
-xmin=0, xmax=150000,
-ymin=0, ymax=1000,
 ymajorgrids=true,
 xmajorgrids=true,
 yminorgrids=true,

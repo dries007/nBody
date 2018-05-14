@@ -1,9 +1,10 @@
-/*
- * nBody problem OpenCL kernel
+/**
+ * (c) Dries Kennes & Stijn Van Dessel 2018
+ *
+ * nBody problem (OpenCL kernels)
  */
-
 #ifdef FOEFELMAGIC
-// This makes CLion think this is a C file.
+// CMakeLists.txt's `add_definitions(-DFOEFELMAGIC)` makes syntax highlighting possible.
 #define __global
 #define __kernel
 #define float3 struct {float x, y, z;}
